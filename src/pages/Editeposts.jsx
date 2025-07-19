@@ -1,23 +1,35 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { db } from "../Firebase/config"; 
 
 export default function EditPost() {
-  const { id } = useParams();
+  const { id } = useParams(); 
   const navigate = useNavigate();
   const [text, setText] = useState("");
   const [imageData, setImageData] = useState("");
 
   useEffect(() => {
-    const posts = JSON.parse(localStorage.getItem("posts")) || [];
-    const post = posts.find((p) => p.id === parseInt(id));
+    const fetchPost = async () => {
+      try {
+        const docRef = doc(db, "posts", id); 
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setText(data.text || "");
+          setImageData(data.image || "");
+        } else {
+          navigate("/");
+        }
+      } catch (error) {
+        console.error("Error fetching post:", error);
+        navigate("/");
+      }
+    };
 
-    if (post) {
-      setText(post.text);
-      setImageData(post.image);
-    } else {
-      navigate("/"); 
-    }
+    fetchPost();
   }, [id, navigate]);
+
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -30,16 +42,19 @@ export default function EditPost() {
     }
   };
 
-  const handleSubmit = (e) => {
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const posts = JSON.parse(localStorage.getItem("posts")) || [];
-    const updatedPosts = posts.map((p) =>
-      p.id === parseInt(id)
-        ? { ...p, text, image: imageData }
-        : p
-    );
-    localStorage.setItem("posts", JSON.stringify(updatedPosts));
-    navigate("/");
+    try {
+      const docRef = doc(db, "posts", id);
+      await updateDoc(docRef, {
+        text,
+        image: imageData,
+      });
+      navigate("/");
+    } catch (error) {
+      console.error("Error updating post:", error);
+    }
   };
 
   return (
@@ -54,7 +69,13 @@ export default function EditPost() {
           rows={4}
         />
         <input type="file" accept="image/*" onChange={handleImageChange} />
-        {imageData && <img src={imageData} alt="preview" className="rounded-lg" />}
+        {imageData && (
+          <img
+            src={imageData}
+            alt="preview"
+            className="rounded-lg max-h-64 w-auto"
+          />
+        )}
         <button
           type="submit"
           className="bg-black text-white px-4 py-2 rounded hover:bg-gray-700"

@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { auth, db } from "../Firebase/config"; 
-import { collection, addDoc, Timestamp } from "firebase/firestore";
-import { doc, getDoc } from "firebase/firestore";
+import { useNavigate } from "react-router-dom";
+import { auth, db } from "../Firebase/config";
+import { collection, addDoc, Timestamp, doc, getDoc } from "firebase/firestore";
 
 export default function AddPost() {
   const [text, setText] = useState("");
   const [imageData, setImageData] = useState("");
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -33,39 +33,43 @@ export default function AddPost() {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImageData(reader.result); 
+        setImageData(reader.result);
       };
       reader.readAsDataURL(file);
     }
   };
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  if (!text && !imageData) return;
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!text && !imageData) return;
 
-  if (!user) {
-    alert("User data not loaded yet");
-    return;
-  }
+    if (!user) {
+      alert("User data not loaded yet");
+      return;
+    }
 
-  try {
-    await addDoc(collection(db, "posts"), {
-      text,
-      image: imageData,
-      liked: false,
-      createdAt: Timestamp.now(),
-      uid: auth.currentUser.uid,
-      username: user.username,
-      photoURL: user.photo || "",
-    });
+    setLoading(true);
+    try {
+      await addDoc(collection(db, "posts"), {
+        text,
+        image: imageData,
+        liked: false,
+        createdAt: Timestamp.now(),
+        uid: auth.currentUser.uid,
+        username: user.username,
+        photoURL: user.photo || "",
+      });
 
-    setText("");
-    setImageData("");
-    navigate("/");
-  } catch (error) {
-    console.error("Error adding post: ", error);
-  }
-};
+      setText("");
+      setImageData("");
+      navigate("/");
+    } catch (error) {
+      console.error("Error adding post: ", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="max-w-xl mx-auto mt-10 p-6 bg-white rounded shadow">
       <h2 className="text-2xl font-bold mb-4">Add New Post</h2>
@@ -78,14 +82,16 @@ const handleSubmit = async (e) => {
           rows={4}
         />
         <input type="file" accept="image/*" onChange={handleImageChange} />
-          {imageData && <img src={imageData} alt="preview" className="rounded-lg" />}
+        {imageData && <img src={imageData} alt="preview" className="rounded-lg" />}
         <button
           type="submit"
           className="bg-black text-white px-4 py-2 rounded hover:bg-gray-700"
+          disabled={loading}
         >
-          Post
+          {loading ? "Posting..." : "Post"}
         </button>
       </form>
     </div>
   );
 }
+
