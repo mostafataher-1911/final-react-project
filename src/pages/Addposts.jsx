@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { auth, db } from "../Firebase/config"; 
+import { collection, addDoc, Timestamp } from "firebase/firestore";
 import { doc, getDoc } from "firebase/firestore";
 
 export default function AddPost() {
@@ -38,35 +39,33 @@ export default function AddPost() {
     }
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!text && !imageData) return;
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  if (!text && !imageData) return;
 
-    if (!user) {
-      alert("User data not loaded yet");
-      return;
-    }
+  if (!user) {
+    alert("User data not loaded yet");
+    return;
+  }
 
-  const newPost = {
-  id: Date.now(),
-  text,
-  image: imageData,
-  liked: false,
-  createdAt: new Date().toLocaleString(),
-   uid: auth.currentUser.uid,
- username: user.username,
-photoURL: user.photo || "",
-
-};
-
-    const existingPosts = JSON.parse(localStorage.getItem("posts")) || [];
-    localStorage.setItem("posts", JSON.stringify([newPost, ...existingPosts]));
+  try {
+    await addDoc(collection(db, "posts"), {
+      text,
+      image: imageData,
+      liked: false,
+      createdAt: Timestamp.now(),
+      uid: auth.currentUser.uid,
+      username: user.username,
+      photoURL: user.photo || "",
+    });
 
     setText("");
     setImageData("");
     navigate("/");
-  };
-
+  } catch (error) {
+    console.error("Error adding post: ", error);
+  }
+};
   return (
     <div className="max-w-xl mx-auto mt-10 p-6 bg-white rounded shadow">
       <h2 className="text-2xl font-bold mb-4">Add New Post</h2>
